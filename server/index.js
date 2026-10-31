@@ -19,15 +19,32 @@ const FINISH = {
     STOP: 'stop', MAX_TOKENS: 'length',
     SAFETY: 'content_filter', RECITATION: 'content_filter', BLOCKLIST: 'content_filter',
     PROHIBITED_CONTENT: 'content_filter', SPII: 'content_filter', IMAGE_SAFETY: 'content_filter',
+    IMAGE_PROHIBITED_CONTENT: 'content_filter', IMAGE_RECITATION: 'content_filter',
+    // the per-request limit with more to come: no continuation token is asked for, so the reply ends there
+    CONTINUATION: 'length',
 };
 const HARM_CATEGORIES = ['HARM_CATEGORY_HARASSMENT', 'HARM_CATEGORY_HATE_SPEECH', 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'HARM_CATEGORY_DANGEROUS_CONTENT'];
 // Gemini 2.x thinks to a token budget; later models to a named level
 const BUDGET = { low: 1024, medium: 8192, high: 24576 };
 const BUDGETED = /^gemini-2\./;
+// the levels a model knows, where it is not low, medium and high (ai.google.dev/gemini-api/docs/thinking)
+const LEVELS = [
+    [/^gemini-3-pro-preview/, ['low', 'high']],
+    [/^gemini-[\d.]+-flash-lite-image/, ['minimal', 'high']],
+];
+// an effort a model lacks becomes the nearest it has, a step up first
+const levelFor = (model, effort) => {
+    const known = LEVELS.find(([re]) => re.test(model))?.[1];
+    if (!known || known.includes(effort)) return effort;
+    const order = ['minimal', 'low', 'medium', 'high'];
+    const at = order.indexOf(effort);
+    return known.find(l => order.indexOf(l) > at) || known.at(-1);
+};
 // Gemma takes no system instruction, so its system prompt opens the first user turn instead
 const NO_SYSTEM = /^gemma-/;
 // Vertex has no model list an express-mode key can read, so this is offered when its list is out of reach
 const VERTEX_CATALOG = [
+    { id: 'gemini-3.1-pro-preview', contextLength: 1048576, vision: true },
     { id: 'gemini-3-pro-preview', contextLength: 1048576, vision: true },
     { id: 'gemini-3-flash-preview', contextLength: 1048576, vision: true },
     { id: 'gemini-2.5-pro', contextLength: 1048576, vision: true },
@@ -69,7 +86,6 @@ export function register(router, ctx) {
     const modelId = (model) => String(model || '').trim().replace(/^(?:publishers\/google\/)?models\//, '');
 
     function paramsFor(model) {
-        const flash = /flash/.test(model);
         return {
             temperature: 'temperature',
             topP: 'topP',
@@ -86,8 +102,7 @@ export function register(router, ctx) {
                 const effort = BUDGET[r?.effort] ? r.effort : 'medium';
                 gc.thinkingConfig = BUDGETED.test(model)
                     ? { includeThoughts: true, thinkingBudget: BUDGET[effort] }
-                    // Pro models know only low and high
-                    : { includeThoughts: true, thinkingLevel: effort === 'medium' && !flash ? 'high' : effort };
+                    : { includeThoughts: true, thinkingLevel: levelFor(model, effort) };
             },
         };
     }

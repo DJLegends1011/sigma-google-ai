@@ -15,7 +15,7 @@ Adds **two native connection kinds** for Google's Gemini `generateContent` API (
 
 ## Features
 
-- **Thinking**: a connection's **Reasoning effort** turns on `thinkingConfig.includeThoughts`, and the thought summary streams into the **Thinking** fold. Gemini 2.x uses `thinkingBudget` (1024 / 8192 / 24576). Gemini 3+ uses `thinkingLevel`; Pro models get `high` for medium effort.
+- **Thinking**: a connection's **Reasoning effort** turns on `thinkingConfig.includeThoughts`, and the thought summary streams into the **Thinking** fold. Gemini 2.x uses `thinkingBudget` (1024 / 8192 / 24576). Gemini 3+ uses `thinkingLevel`. If a model lacks the chosen level, it gets the next level up (e.g. medium becomes high on `gemini-3-pro-preview`).
 - **Vision**: a message's images are sent as `inlineData` parts.
 - **Samplers**: temperature, top P, top K, max output tokens, stop sequences, presence and frequency penalties, seed, and JSON mode (`responseMimeType`).
 - **Safety filters**: `OFF` by default. You can also pick `BLOCK_NONE` or Google's defaults. A blocked prompt shows as an error; a blocked reply ends with `content_filter`.
