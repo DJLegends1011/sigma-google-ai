@@ -53,7 +53,8 @@ const VERTEX_CATALOG = [
     { id: 'gemini-2.0-flash', contextLength: 1048576, vision: true },
     { id: 'gemini-2.0-flash-lite', contextLength: 1048576, vision: true },
 ];
-const DEFAULTS = { safety: 'off', vertexProject: '', vertexLocation: 'global' };
+const DEFAULTS = { safety: 'off', brailleSpaces: 'argon', vertexProject: '', vertexLocation: 'global' };
+const ARGON_OR_NEWER = /argon|gemini-[3-9]/i;
 
 export function register(router, ctx) {
     const { LlmError, classifyUpstream, boundedErrorText, networkError, readJsonBody, parseSse, translateParams } = ctx.llm.kit;
@@ -75,6 +76,7 @@ export function register(router, ctx) {
         try {
             return {
                 safety: String(ctx.setting(db, 'safety') || DEFAULTS.safety),
+                brailleSpaces: String(ctx.setting(db, 'brailleSpaces') || DEFAULTS.brailleSpaces),
                 vertexProject: String(ctx.setting(db, 'vertexProject') || '').trim(),
                 vertexLocation: String(ctx.setting(db, 'vertexLocation') || '').trim() || DEFAULTS.vertexLocation,
             };
@@ -273,13 +275,22 @@ export function register(router, ctx) {
     // a mid-stream error carries its HTTP status as its code
     const streamError = (data) => classifyUpstream({ status: Number(data?.error?.code) || 0 }, JSON.stringify(data));
 
-    function split(parts) {
+    function shouldCleanBraille(profile, req) {
+        const mode = accountSettings(profile).brailleSpaces;
+        if (mode === 'off') return false;
+        if (mode === 'all') return true;
+        const model = modelId(req?.model || profile?.model);
+        return ARGON_OR_NEWER.test(model);
+    }
+
+    function split(parts, cleanBraille = false) {
         let text = '';
         let reasoning = '';
         for (const p of Array.isArray(parts) ? parts : []) {
             if (typeof p?.text !== 'string') continue;
             if (p.thought) reasoning += p.text; else text += p.text;
         }
+        if (cleanBraille && text.includes('\u2800')) text = text.replaceAll('\u2800', ' ');
         return { text, reasoning };
     }
 
@@ -307,7 +318,7 @@ export function register(router, ctx) {
                 if (refusal) throw refusal;
                 if (!Array.isArray(data?.candidates)) throw new LlmError('upstream', 'unrecognized response shape');
                 const candidate = data.candidates[0] || {};
-                const { text, reasoning } = split(candidate.content?.parts);
+                const { text, reasoning } = split(candidate.content?.parts, shouldCleanBraille(profile, req));
                 return {
                     content: text,
                     ...(reasoning ? { reasoning } : {}),
@@ -319,6 +330,7 @@ export function register(router, ctx) {
             async *chatStream(profile, req, signal) {
                 const { url, headers, body } = await prepare(profile, req, ':streamGenerateContent?alt=sse', signal);
                 const resp = await send(url, { method: 'POST', headers, body }, signal);
+                const cleanBraille = shouldCleanBraille(profile, req);
                 let finishReason = null;
                 let usage = null;
                 let read = false;
@@ -330,7 +342,7 @@ export function register(router, ctx) {
                     const refusal = blocked(data);
                     if (refusal) throw refusal;
                     const candidate = data?.candidates?.[0];
-                    const { text, reasoning } = split(candidate?.content?.parts);
+                    const { text, reasoning } = split(candidate?.content?.parts, cleanBraille);
                     if (reasoning) yield { reasoning };
                     if (text) yield { text };
                     if (candidate?.finishReason) finishReason = finishOf(candidate.finishReason);

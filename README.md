@@ -1,6 +1,6 @@
 # Google Gemini (AI Studio & Vertex AI) for Project Σ (`google-ai`)
 
-> **Status:** `v1.0.0-beta`: beta release for testing.
+> **Status:** `v1.0.1-beta`: beta release for testing.
 
 Adds **two native connection kinds** for Google's Gemini `generateContent` API (`ctx.llm.registerAdapter`), modeled on the bundled Anthropic extension:
 
@@ -19,6 +19,7 @@ Adds **two native connection kinds** for Google's Gemini `generateContent` API (
 - **Vision**: a message's images are sent as `inlineData` parts.
 - **Samplers**: temperature, top P, top K, max output tokens, stop sequences, presence and frequency penalties, seed, and JSON mode (`responseMimeType`).
 - **Safety filters**: `OFF` by default. You can also pick `BLOCK_NONE` or Google's defaults. A blocked prompt shows as an error; a blocked reply ends with `content_filter`.
+- **Braille JB whitespace (`U+2800` → space)**: converts Braille Pattern Blank characters (`⠀`) emitted by ShieldGemma / Braille JB prompts back into normal ASCII spaces as replies arrive (`Argon & Gemini 3+ models only` by default, or `All Gemini models` / `Off`), keeping word-wrapping and keyword triggers clean.
 - **Conversation shaping**: leading system messages become `systemInstruction`, and consecutive same-role turns are merged. The conversation always starts and ends on a user turn. For Gemma, the system prompt goes at the top of the first user turn, because Gemma has no system instruction.
 - **Model list**: AI Studio uses the live `/models` list, keeping only models that support `generateContent`. Vertex combines a built-in Gemini catalog with the publisher model list where a token can read it. **Test connection** still checks the key or token.
 

@@ -1,7 +1,7 @@
 {
     "id": "google-ai",
     "name": "Google Gemini (AI Studio & Vertex AI)",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "DJLegends",
     "description": "Adds two connection kinds for Google's Gemini models: \"Google AI Studio (Gemini API)\" for AI Studio API keys, and \"Google Vertex AI\" for Vertex express-mode API keys, OAuth access tokens, or a pasted service-account / gcloud application-default JSON. A reasoning effort turns on Gemini thinking and shows the thought summary as the reply's reasoning; safety filters can be switched off for fiction.",
     "requires": { "api": "2.6" },
@@ -9,6 +9,7 @@
     "server": "server/index.js",
     "settings": {
         "safety": "off",
+        "brailleSpaces": "argon",
         "vertexProject": "",
         "vertexLocation": "global"
     }

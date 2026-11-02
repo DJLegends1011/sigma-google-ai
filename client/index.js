@@ -6,6 +6,7 @@ export default {
     init(ctx) {
         ctx.ui.addSettingsSection((el) => {
             const safety = String(ctx.settings.get('safety') || 'off');
+            const braille = String(ctx.settings.get('brailleSpaces') || 'argon');
             const project = String(ctx.settings.get('vertexProject') || '');
             const location = String(ctx.settings.get('vertexLocation') || 'global');
 
@@ -18,6 +19,15 @@ export default {
                         <option value="default"${safety === 'default' ? ' selected' : ''}>Google's defaults (send no safety settings)</option>
                     </select>
                     <span class="settings-hint">Harassment, hate speech, sexually explicit and dangerous content. A blocked reply ends with the <code>content_filter</code> reason.</span>
+                </div>
+                <div class="settings-row">
+                    <label for="gai-braille">Braille JB whitespace (<code>U+2800</code> → space)</label>
+                    <select id="gai-braille" class="glass-input" data-gai-set="brailleSpaces">
+                        <option value="argon"${braille === 'argon' ? ' selected' : ''}>Argon &amp; Gemini 3+ models only</option>
+                        <option value="all"${braille === 'all' ? ' selected' : ''}>All Gemini models</option>
+                        <option value="off"${braille === 'off' ? ' selected' : ''}>Off (keep raw U+2800)</option>
+                    </select>
+                    <span class="settings-hint">Converts Braille blank spaces (<code>⠀</code>) from ShieldGemma / Braille JB prompts back into normal spaces as replies arrive, so word-wrapping and keyword triggers work normally.</span>
                 </div>
                 <div class="settings-row">
                     <label for="gai-project">Vertex AI project ID</label>
