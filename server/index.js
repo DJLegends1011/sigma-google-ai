@@ -29,6 +29,7 @@ const BUDGET = { none: 0, minimal: 512, low: 1024, medium: 8192, high: 24576 };
 // levels this host does not name map to the nearest it does
 const ALIAS = { xhigh: 'high', max: 'high' };
 const BUDGETED = /^gemini-2\./;
+const NO_THINKING_OFF = /^gemini-2\.5-pro/;
 // the levels a model knows, where it is not low, medium and high (ai.google.dev/gemini-api/docs/thinking)
 const LEVELS = [
     [/^gemini-3-pro-preview/, ['low', 'high']],
@@ -108,7 +109,9 @@ export function register(router, ctx) {
                 const effort = ALIAS[picked] || picked;
                 if (BUDGETED.test(model)) {
                     // a token budget has no word to pass, so only a genuinely unknown word falls back to medium
-                    const budget = Object.hasOwn(BUDGET, effort) ? BUDGET[effort] : BUDGET.medium;
+                    let budget = Object.hasOwn(BUDGET, effort) ? BUDGET[effort] : BUDGET.medium;
+                    // 2.5 Pro cannot switch thinking off; 128 is the least it takes
+                    if (budget === 0 && NO_THINKING_OFF.test(model)) budget = 128;
                     gc.thinkingConfig = budget === 0 ? { thinkingBudget: 0 } : { includeThoughts: true, thinkingBudget: budget };
                 } else {
                     // Gemini 3 cannot switch thinking off, so none is its lowest level
