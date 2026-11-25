@@ -35,8 +35,11 @@ const LEVELS = [
     [/^gemini-3-pro-preview/, ['low', 'high']],
     [/^gemini-[\d.]+-flash-lite-image/, ['minimal', 'high']],
 ];
+// the models that take minimal (tried live 2026-11-25); Gemini 4, 3.7 and 3.8 Flash, 3.1 Pro and the -latest aliases refuse it, so elsewhere it is low
+const TAKES_MINIMAL = /flash-lite|image|^gemini-3-flash|^gemini-3\.[56]-flash/;
 // an effort a model lacks becomes the nearest it has, a step up first
-const levelFor = (model, effort) => {
+const levelFor = (model, picked) => {
+    const effort = picked === 'minimal' && !TAKES_MINIMAL.test(model) ? 'low' : picked;
     const known = LEVELS.find(([re]) => re.test(model))?.[1];
     if (!known || known.includes(effort)) return effort;
     const order = ['minimal', 'low', 'medium', 'high'];
