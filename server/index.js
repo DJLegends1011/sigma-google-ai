@@ -25,7 +25,9 @@ const FINISH = {
 };
 const HARM_CATEGORIES = ['HARM_CATEGORY_HARASSMENT', 'HARM_CATEGORY_HATE_SPEECH', 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'HARM_CATEGORY_DANGEROUS_CONTENT'];
 // Gemini 2.x thinks to a token budget; later models to a named level
-const BUDGET = { low: 1024, medium: 8192, high: 24576 };
+const BUDGET = { none: 0, minimal: 512, low: 1024, medium: 8192, high: 24576 };
+// levels this host does not name map to the nearest it does
+const ALIAS = { xhigh: 'high', max: 'high' };
 const BUDGETED = /^gemini-2\./;
 // the levels a model knows, where it is not low, medium and high (ai.google.dev/gemini-api/docs/thinking)
 const LEVELS = [
@@ -37,6 +39,7 @@ const levelFor = (model, effort) => {
     const known = LEVELS.find(([re]) => re.test(model))?.[1];
     if (!known || known.includes(effort)) return effort;
     const order = ['minimal', 'low', 'medium', 'high'];
+    if (!order.includes(effort)) return effort; // a custom word goes up as typed; Gemini refuses it and the Test shows that
     const at = order.indexOf(effort);
     return known.find(l => order.indexOf(l) > at) || known.at(-1);
 };
@@ -101,10 +104,16 @@ export function register(router, ctx) {
             // the thought summary is what the app keeps as the reply's reasoning
             reasoning: (r, gc) => {
                 if (NO_SYSTEM.test(model)) return;
-                const effort = BUDGET[r?.effort] ? r.effort : 'medium';
-                gc.thinkingConfig = BUDGETED.test(model)
-                    ? { includeThoughts: true, thinkingBudget: BUDGET[effort] }
-                    : { includeThoughts: true, thinkingLevel: levelFor(model, effort) };
+                const picked = String(r?.effort ?? '');
+                const effort = ALIAS[picked] || picked;
+                if (BUDGETED.test(model)) {
+                    // a token budget has no word to pass, so only a genuinely unknown word falls back to medium
+                    const budget = Object.hasOwn(BUDGET, effort) ? BUDGET[effort] : BUDGET.medium;
+                    gc.thinkingConfig = budget === 0 ? { thinkingBudget: 0 } : { includeThoughts: true, thinkingBudget: budget };
+                } else {
+                    // Gemini 3 cannot switch thinking off, so none is its lowest level
+                    gc.thinkingConfig = { includeThoughts: true, thinkingLevel: levelFor(model, effort === 'none' ? 'minimal' : effort || 'medium') };
+                }
             },
         };
     }
